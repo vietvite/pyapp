@@ -67,3 +67,40 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+  update-argocd:
+    needs: build-and-push
+    environment: main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ArgoCD repository
+        uses: actions/checkout@v4
+        with:
+          repository: vietvite/infra-cicd-test
+          token: ${{ secrets.ARGOCD_GITHUB_USER }}
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /usr/local/bin/yq
+
+      - name: Update values.yaml
+        working-directory: argocd/ms-apps/environments/production/pyapp
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Create values.yaml if it doesn't exist
+          touch values.yaml
+          # Update image repository and tag using yq
+          yq -i eval '.image.repository = env(ECR_REGISTRY) + "/" + env(ECR_REPOSITORY)' values.yaml
+          yq -i eval '.image.tag = env(IMAGE_TAG)' values.yaml
+
+      - name: Commit and push changes
+        working-directory: argocd/ms-apps/environments/production/pyapp
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add values.yaml
+          git commit -m "Update image tag to ${GITHUB_SHA}"
+          git push origin main
