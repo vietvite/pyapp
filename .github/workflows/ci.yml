@@ -44,6 +44,8 @@ jobs:
     needs: test
     environment: main
     runs-on: ubuntu-latest
+    outputs:
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
     steps:
       - uses: actions/checkout@v4
 
@@ -87,7 +89,7 @@ jobs:
       - name: Update values.yaml
         working-directory: argocd/ms-apps/environments/production/pyapp
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           # Create values.yaml if it doesn't exist
