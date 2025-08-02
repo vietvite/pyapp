@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask import Flask, request, Response
 
-app = Flask(__name__
+app = Flask(__name__)
 
 @app.route("/healthcheck", methods=["GET"])
 def healthcheck():
